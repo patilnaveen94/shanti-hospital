@@ -45,6 +45,48 @@ a restart is required — editing `.env.local` while the server runs does nothin
 
 ---
 
+## Deploying
+
+`vercel.json` configures the build. Import the repo at
+[vercel.com/new](https://vercel.com/new) and accept the defaults — **set no
+environment variables**. Without `REACT_APP_SUPABASE_URL` and
+`REACT_APP_SUPABASE_ANON_KEY` the app deploys in local mode, which is the right
+shape for a test link: no database to configure, no patient data anywhere, and
+the site makes no network calls beyond fonts and the hospital's image CDN.
+
+### What testers should expect in local mode
+
+Seed data lives in each visitor's own `localStorage`, so **every tester gets an
+independent copy of the site**. A booking one person makes is invisible to
+everyone else, including to staff opening the admin dashboard on another device.
+That is fine for checking screens, flows and wording, and useless for testing a
+shared workflow — "does the front desk see the booking I just made" needs cloud
+mode. Admin sign-in uses the demo passcode in `src/config/hospital.js`.
+
+### Going to cloud mode later
+
+Add the two `REACT_APP_SUPABASE_*` variables in Vercel's project settings and
+redeploy. Before doing that on a public URL, read the rate-limiting note in
+[`README-backend.md`](./README-backend.md): the booking and testimonial forms are
+both unauthenticated, so a public address plus a live database is a spammable
+combination.
+
+### Notes on `vercel.json`
+
+- `INLINE_RUNTIME_CHUNK=false` stops Create React App inlining its webpack
+  runtime into `index.html`. That inline `<script>` would otherwise force
+  `script-src 'unsafe-inline'` in the CSP and defeat most of its value.
+- The Content-Security-Policy allow-list is derived from what the app actually
+  loads: Google Fonts for CSS and font files, `static.wixstatic.com` for
+  hospital photographs, `data:` for generated avatars and testimonial photos, and
+  `*.supabase.co` for cloud mode. `style-src` keeps `'unsafe-inline'` because
+  React sets style attributes directly; scripts do not need it.
+- `frame-ancestors 'none'` and `X-Frame-Options: DENY` stop the booking form
+  being framed by another site, which is the usual way a form that collects a
+  name, phone number and symptoms gets harvested.
+
+---
+
 ## What is here
 
 ```
