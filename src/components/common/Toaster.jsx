@@ -32,7 +32,7 @@ function Toast({ toast }) {
         type="button"
         onClick={() => dispatch(dismissToast(toast.id))}
         aria-label="Dismiss notification"
-        className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-100"
+        className="tap -mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-100"
       >
         <X className="h-4 w-4" />
       </button>

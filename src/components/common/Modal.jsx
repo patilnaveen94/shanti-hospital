@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 /**
@@ -6,6 +7,20 @@ import { X } from 'lucide-react';
  * card from `sm` upwards — the pattern mobile users expect for multi-step flows.
  *
  * Handles Escape, scroll lock, focus capture and focus restore.
+ *
+ * RENDERED IN A PORTAL, and that is load-bearing rather than tidiness.
+ *
+ * `App.js` wraps the active page in `<div className="animate-fade-in">`, and
+ * that animation is declared with `fill-mode: both`, so its `opacity` keyframe
+ * is retained forever. An element with a filling opacity animation forms a
+ * stacking context, which capped `z-index` for everything inside it. Any modal
+ * opened from a page — every admin form — was therefore trapped *below* the
+ * sticky header (`z-50`) and the bottom nav (`z-50`), despite asking for
+ * `z-[70]`. On a phone that clipped the dialog title under the header and hid
+ * the Save/Cancel footer behind the bottom bar.
+ *
+ * Portalling to `document.body` escapes any ancestor stacking context, so this
+ * cannot regress if a future page gains a transform, filter or opacity.
  */
 export default function Modal({
   open,
@@ -67,6 +82,8 @@ export default function Modal({
   }, [open]);
 
   if (!open) return null;
+  // No document during SSR or a non-DOM test environment.
+  if (typeof document === 'undefined') return null;
 
   const widths = {
     sm: 'sm:max-w-md',
@@ -75,7 +92,7 @@ export default function Modal({
     xl: 'sm:max-w-5xl',
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4" role="presentation">
       <div
         className="absolute inset-0 animate-fade-in bg-slate-900/55 backdrop-blur-sm"
@@ -134,6 +151,7 @@ export default function Modal({
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

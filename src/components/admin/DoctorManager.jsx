@@ -348,10 +348,10 @@ export default function DoctorManager() {
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                     <Toggle id={`avail-${doctor.id}`} checked={doctor.available} onChange={() => dispatch(toggleDoctorAvailability(doctor.id))} label={doctor.available ? 'Available' : 'On leave'} />
                     <div className="flex gap-1.5">
-                      <button type="button" onClick={() => setEditing(doctor)} aria-label={`Edit ${doctor.name}`} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50">
+                      <button type="button" onClick={() => setEditing(doctor)} aria-label={`Edit ${doctor.name}`} className="tap grid h-11 w-11 place-items-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50">
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => setPendingDelete(doctor)} aria-label={`Remove ${doctor.name}`} className="grid h-10 w-10 place-items-center rounded-xl border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
+                      <button type="button" onClick={() => setPendingDelete(doctor)} aria-label={`Remove ${doctor.name}`} className="tap grid h-11 w-11 place-items-center rounded-xl border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

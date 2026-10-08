@@ -94,10 +94,12 @@ function AnnouncementForm({ open, onClose, initial, onSave, title }) {
         <div>
           <label className="label" htmlFor="ann-image">Banner image URL <span className="font-normal text-slate-400">(optional)</span></label>
           <input id="ann-image" className="input" value={values.image} onChange={set('image')} placeholder="Wix media filename or full https:// URL" />
+          {/* Was a bare 19px-tall text link — too short to tap reliably. */}
           <button
             type="button"
             onClick={() => setValues((prev) => ({ ...prev, image: MEDIA.cardiologyLaunch }))}
-            className="mt-2 text-[12.5px] font-bold text-primary-700 underline-offset-2 hover:underline"
+            className="mt-1.5 inline-flex min-h-[40px] items-center rounded-lg px-2 -ml-2 text-[12.5px] font-bold
+                       text-primary-700 underline-offset-2 transition-colors hover:bg-primary-50 hover:underline"
           >
             Use the hospital's cardiology launch banner
           </button>
@@ -184,7 +186,7 @@ export default function AnnouncementManager() {
                   <button type="button" onClick={() => setEditing(item)} className="btn-secondary btn-sm">
                     <Pencil className="h-3.5 w-3.5" />Edit
                   </button>
-                  <button type="button" onClick={() => setPendingDelete(item)} aria-label={`Delete ${item.title}`} className="grid h-[38px] w-[38px] place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
+                  <button type="button" onClick={() => setPendingDelete(item)} aria-label={`Delete ${item.title}`} className="tap grid h-11 w-11 place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

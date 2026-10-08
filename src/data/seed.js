@@ -3,7 +3,7 @@
  *
  * PROVENANCE
  * - Doctor names, qualifications, designations, departments and profile text are
- *   taken from Shanti Hospital's own website (shantihospital.in â€” the
+ *   taken from Shanti Hospital's own website (shantihospital.in — the
  *   /departments, /about-1, /about-3-1, /cardiology, /copy-of-adult-specialities
  *   and /copy-of-pediatric-intensive-care pages).
  * - `experience` is only set where the site states it; 0 means "not published"
@@ -65,7 +65,7 @@ export const SEED_DEPARTMENTS = [
     icon: 'Flower2',
     accent: 'rose',
     description:
-      'A centre conceived exclusively for mother and baby â€” high-risk pregnancy, infertility and vaginal surgery.',
+      'A centre conceived exclusively for mother and baby — high-risk pregnancy, infertility and vaginal surgery.',
     services: ['High-risk pregnancy care', 'Infertility treatment', 'Gynaec endoscopy', 'Obstetric ultrasound', 'Labour room & delivery'],
   },
   {
@@ -134,7 +134,7 @@ export const SEED_DEPARTMENTS = [
     icon: 'Baby',
     accent: 'mint',
     description:
-      'The department we began with in 1986 â€” over 2.5 lakh in-patients treated and more than 20 lakh out-patient visits since inception.',
+      'The department we began with in 1986 — over 2.5 lakh in-patients treated and more than 20 lakh out-patient visits since inception.',
     services: ['Acute & chronic childhood illness', 'Post-ICU management', 'Metabolic disorder evaluation', 'Immunisation & vaccination unit'],
   },
   {
@@ -209,7 +209,7 @@ export const SEED_DEPARTMENTS = [
     group: 'Paediatric',
     icon: 'Droplets',
     accent: 'blue',
-    description: 'Kidney care for children, including neonatal acute kidney injury â€” a service built up in-house at Bagalkot.',
+    description: 'Kidney care for children, including neonatal acute kidney injury — a service built up in-house at Bagalkot.',
     services: ['Childhood nephrotic syndrome', 'Neonatal acute kidney injury', 'Paediatric dialysis', 'Congenital kidney anomalies'],
   },
 
@@ -252,7 +252,7 @@ export const SEED_DEPARTMENTS = [
   },
 ];
 
-/* Shared demo schedule defaults â€” see the provenance note at the top. */
+/* Shared demo schedule defaults — see the provenance note at the top. */
 const wk = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const wkSat = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const alt = ['Mon', 'Wed', 'Fri'];
@@ -331,7 +331,7 @@ export const SEED_DOCTORS = [
     id: 'doc-sunil-patil',
     name: 'Dr. Sunil J Patil',
     departmentId: 'dept-picu',
-    specialization: 'Chief â€” Paediatric Critical Care Division',
+    specialization: 'Chief — Paediatric Critical Care Division',
     qualification: 'MD (Paediatrics), FPCC',
     experience: 0,
     photo: portrait('drSunilPatil'),
@@ -779,7 +779,7 @@ export const SEED_ANNOUNCEMENTS = [
     id: 'ann-001',
     title: 'Advanced Cardiology & Hemato-Oncology starting soon',
     message:
-      'Shanti Hospital, Bagalkot is expanding with dedicated Cardiology and Hemato-Oncology services â€” specialised, compassionate care closer to home.',
+      'Shanti Hospital, Bagalkot is expanding with dedicated Cardiology and Hemato-Oncology services — specialised, compassionate care closer to home.',
     type: 'info',
     image: MEDIA.cardiologyLaunch,
     pinned: true,
@@ -788,7 +788,7 @@ export const SEED_ANNOUNCEMENTS = [
   },
   {
     id: 'ann-002',
-    title: 'Free heart health check-up camp â€” this Sunday',
+    title: 'Free heart health check-up camp — this Sunday',
     message:
       'Complimentary BP, ECG and blood-sugar screening from 9:00 AM to 1:00 PM at the main OPD block. Walk-ins welcome, no appointment needed.',
     type: 'camp',
@@ -801,7 +801,7 @@ export const SEED_ANNOUNCEMENTS = [
     id: 'ann-003',
     title: 'Cashless treatment under government health schemes',
     message:
-      'We accept Ayushman Bharatâ€“Arogya Karnataka, Jyoti Sanjeevini, Rajeev Arogya Bhagya and the Government Employee\u2019s Reimbursement Scheme. Please carry a valid ID.',
+      'We accept Ayushman Bharat–Arogya Karnataka, Jyoti Sanjeevini, Rajeev Arogya Bhagya and the Government Employee\u2019s Reimbursement Scheme. Please carry a valid ID.',
     type: 'info',
     image: '',
     pinned: false,
@@ -810,7 +810,7 @@ export const SEED_ANNOUNCEMENTS = [
   },
   {
     id: 'ann-004',
-    title: 'Emergency, pharmacy & lab run 24Ã—7',
+    title: 'Emergency, pharmacy & lab run 24×7',
     message:
       'Casualty, the 24-hour pharmacy and our clinical laboratory stay open round the clock, every day of the year. Call 08354 220996 for emergencies.',
     type: 'alert',

@@ -185,7 +185,7 @@ export default function TestimonialManager() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setFilter(item.id)}
-                className={`flex min-h-[38px] shrink-0 snap-start items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-colors ${
+                className={`tap flex min-h-[38px] shrink-0 snap-start items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-colors ${
                   active
                     ? 'bg-primary-600 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'

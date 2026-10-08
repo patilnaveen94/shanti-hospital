@@ -40,16 +40,22 @@ function EmergencyBar() {
           <span className="truncate">24×7 Emergency &amp; Trauma Care</span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5">
+          {/*
+            Deliberately not the full 44px `tap` target: that would nearly double
+            the height of this strip on every page. At 133x36 it clears WCAG 2.5.8
+            (AA, 24x24) comfortably and is a wide, high-contrast pill; the AAA
+            44x44 guidance loses to keeping the bar slim.
+          */}
           <a
             href={`tel:${HOSPITAL.emergency.replace(/\s/g, '')}`}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[12px] font-bold transition-colors hover:bg-white/25 sm:text-[13px]"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1 text-[12px] font-bold transition-colors hover:bg-white/25 sm:text-[13px]"
           >
             <Phone className="h-3.5 w-3.5" aria-hidden="true" />
             {HOSPITAL.emergency}
           </a>
           <a
             href={`tel:${HOSPITAL.ambulance}`}
-            className="hidden items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[13px] font-bold transition-colors hover:bg-white/25 sm:inline-flex"
+            className="hidden min-h-[36px] items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1 text-[13px] font-bold transition-colors hover:bg-white/25 sm:inline-flex"
           >
             Ambulance {HOSPITAL.ambulance}
           </a>

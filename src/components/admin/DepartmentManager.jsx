@@ -148,18 +148,29 @@ function DepartmentForm({ open, onClose, initial, onSave, title }) {
             <button type="button" onClick={addService} className="btn-secondary shrink-0 !px-4">Add</button>
           </div>
 
+          {/*
+            The remove control was 24x24, roughly half the size a thumb can
+            reliably hit. The visual circle is now 32px and an invisible `after`
+            pseudo-element widens the touch target to 40px without changing the
+            chip's layout. `gap-2.5` keeps adjacent targets from overlapping,
+            which would trade a small button for a worse problem: removing the
+            wrong service.
+          */}
           {Boolean(values.services.length) && (
-            <ul className="mt-2.5 flex flex-wrap gap-2">
+            <ul className="mt-2.5 flex flex-wrap gap-2.5">
               {values.services.map((service) => (
-                <li key={service} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-slate-700">
+                <li key={service} className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-3 pr-1 text-[12.5px] font-semibold text-slate-700">
                   {service}
                   <button
                     type="button"
                     onClick={() => setValues((prev) => ({ ...prev, services: prev.services.filter((s) => s !== service) }))}
                     aria-label={`Remove ${service}`}
-                    className="grid h-6 w-6 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                    className="relative grid h-8 w-8 place-items-center rounded-full text-slate-500 transition-colors
+                               hover:bg-slate-200 hover:text-slate-800
+                               after:absolute after:left-1/2 after:top-1/2 after:h-10 after:w-10
+                               after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -238,10 +249,10 @@ export default function DepartmentManager() {
                   </div>
 
                   <div className="flex shrink-0 flex-col gap-1.5">
-                    <button type="button" onClick={() => setEditing(department)} aria-label={`Edit ${department.name}`} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50">
+                    <button type="button" onClick={() => setEditing(department)} aria-label={`Edit ${department.name}`} className="tap grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => setPendingDelete(department)} aria-label={`Delete ${department.name}`} className="grid h-9 w-9 place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
+                    <button type="button" onClick={() => setPendingDelete(department)} aria-label={`Delete ${department.name}`} className="tap grid h-9 w-9 place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

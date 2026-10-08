@@ -29,7 +29,7 @@ export default function Footer() {
                 <button
                   type="button"
                   onClick={() => dispatch(setActiveTab(item.id))}
-                  className="-mx-2 rounded-lg px-2 py-1.5 text-sm text-primary-200 transition-colors hover:bg-white/10 hover:text-white"
+                  className="tap -mx-2 inline-flex items-center rounded-lg px-2 py-1.5 text-sm text-primary-200 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   {item.label}
                 </button>
@@ -39,7 +39,7 @@ export default function Footer() {
               <button
                 type="button"
                 onClick={() => dispatch(openBooking({}))}
-                className="-mx-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-mint-300 transition-colors hover:bg-white/10 hover:text-white"
+                className="tap -mx-2 inline-flex items-center rounded-lg px-2 py-1.5 text-sm font-semibold text-mint-300 transition-colors hover:bg-white/10 hover:text-white"
               >
                 {BOOK_ACTION.label}
               </button>
@@ -64,14 +64,16 @@ export default function Footer() {
             {HOSPITAL.phones.map((phone) => (
               <li key={phone} className="flex gap-2.5">
                 <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" aria-hidden="true" />
-                <a href={`tel:${phone.replace(/\s/g, '')}`} className="text-primary-200 transition-colors hover:text-white">
+                {/* `tap` matters most here: calling the hospital is the single
+                    most likely action on a phone. */}
+                <a href={`tel:${phone.replace(/\s/g, '')}`} className="tap inline-flex items-center text-primary-200 transition-colors hover:text-white">
                   {phone}
                 </a>
               </li>
             ))}
             <li className="flex gap-2.5">
               <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" aria-hidden="true" />
-              <a href={`mailto:${HOSPITAL.email}`} className="break-all text-primary-200 transition-colors hover:text-white">
+              <a href={`mailto:${HOSPITAL.email}`} className="tap inline-flex items-center break-all text-primary-200 transition-colors hover:text-white">
                 {HOSPITAL.email}
               </a>
             </li>
@@ -100,7 +102,7 @@ export default function Footer() {
             href={HOSPITAL.website}
             target="_blank"
             rel="noreferrer noopener"
-            className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-300 transition-colors hover:text-white"
+            className="tap mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-300 transition-colors hover:text-white"
           >
             Official website
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

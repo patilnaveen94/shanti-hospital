@@ -104,7 +104,7 @@ function StatusSelect({ appointment }) {
         value={appointment.status}
         onChange={onChange}
         aria-label={`Status for ${appointment.refId}`}
-        className={`min-h-[34px] cursor-pointer appearance-none rounded-full border-0 py-1 pl-3 pr-7 text-[11.5px] font-bold uppercase tracking-wide focus:ring-2 focus:ring-primary-400 ${style.badge}`}
+        className={`tap min-h-[36px] cursor-pointer appearance-none rounded-full border-0 py-1 pl-3 pr-7 text-[11.5px] font-bold uppercase tracking-wide focus:ring-2 focus:ring-primary-400 ${style.badge}`}
       >
         {APPOINTMENT_STATUSES.map((status) => (
           <option key={status} value={status}>{status}</option>
@@ -147,7 +147,8 @@ function NotifyCell({ appointment, onPreview }) {
     <button
       type="button"
       onClick={() => onPreview(appointment)}
-      className="text-[11px] font-bold text-slate-500 underline-offset-2 hover:text-primary-700 hover:underline"
+      className="tap inline-flex items-center justify-center rounded-lg px-2 text-[11px] font-bold text-slate-500
+                 underline-offset-2 hover:bg-slate-100 hover:text-primary-700 hover:underline"
       title="See exactly what this patient receives"
     >
       Preview
@@ -160,10 +161,10 @@ function NotifyCell({ appointment, onPreview }) {
         <button
           type="button"
           onClick={resend}
-          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-200"
+          className="tap inline-flex items-center justify-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-200"
           title="Send a WhatsApp message to the patient"
         >
-          <MessageCircle className="h-3 w-3" aria-hidden="true" />
+          <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
           Send
         </button>
         {preview}
@@ -527,7 +528,7 @@ export default function AppointmentTracker() {
                     <Phone className="h-3.5 w-3.5" aria-hidden="true" />
                     {apt.patient.phone}
                   </a>
-                  <button type="button" onClick={() => setPendingDelete(apt)} aria-label={`Delete ${apt.refId}`} className="grid h-[38px] w-[38px] place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
+                  <button type="button" onClick={() => setPendingDelete(apt)} aria-label={`Delete ${apt.refId}`} className="tap grid h-11 w-11 place-items-center rounded-lg border border-danger-200 text-danger-600 transition-colors hover:bg-danger-50">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

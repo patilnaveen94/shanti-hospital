@@ -91,8 +91,36 @@
     @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
   }
 
+  /*
+   * 38px is a comfortable compact button for a mouse and too small for a thumb.
+   * Rather than compromise both, grow it on touch input only. `pointer: coarse`
+   * targets the device, not the screen width, so a staff member on a tablet in
+   * landscape still gets a proper target while the desktop admin stays dense.
+   */
   .btn-sm {
     @apply min-h-[38px] rounded-lg px-3.5 text-[13px];
+  }
+  @media (pointer: coarse) {
+    .btn-sm {
+      min-height: 44px;
+    }
+  }
+
+  /*
+   * Compact icon buttons and inline text actions that are fine with a cursor
+   * but too small for a thumb. Add `tap` and they grow to 44px on touch input
+   * only, so the desktop admin tables stay dense.
+   *
+   * `!important` is deliberate. This sits in Tailwind's `components` layer while
+   * the sizes it has to beat (`min-h-[38px]`, `h-9`) are `utilities`, which rank
+   * higher. A minimum touch target is an accessibility floor rather than a
+   * styling preference, so it should win against whatever a component asked for.
+   */
+  @media (pointer: coarse) {
+    .tap {
+      min-height: 44px !important;
+      min-width: 44px !important;
+    }
   }
 
   /* ---------- Form controls ---------- */
