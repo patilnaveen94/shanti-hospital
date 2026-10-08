@@ -71,11 +71,39 @@ before committing a budget line.
 
 Onboarding and business verification take a few days. Start early.
 
+### 1b. Testing it for free first
+
+You do **not** need business verification, a hospital phone number, or any
+spending to try this end to end.
+
+When you add the WhatsApp product to a Meta app, Meta issues a **test business
+phone number** that sends **free messages to up to 5 recipient numbers**
+([Meta's Get Started guide](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/)).
+Add your own mobile and a colleague's as test recipients — each confirms with an
+OTP — and real WhatsApp messages arrive on real phones at no cost.
+
+Without business verification you are capped at roughly 250 unique recipients per
+24 hours and 2 phone numbers, which is far beyond what testing needs.
+
+Two things that catch people out:
+
+- **The default access token expires after 24 hours.** Fine for an afternoon of
+  testing; for anything longer, generate a System User token as in step 1.
+- **Templates still need approving**, even on a test number. Usually minutes for
+  Utility. Meta also ships a pre-approved `hello_world` template, which is the
+  quickest way to prove your plumbing works before your own templates clear.
+
+The rest of the free stack: Supabase's free tier runs the database and the Edge
+Function, and Vercel's hobby tier hosts the site. So a complete working
+demonstration costs nothing. None of it is suitable for real patient data — the
+Supabase free tier takes no backups, see `README-backend.md`.
+
 ### 2. Create the message templates
 
-In **WhatsApp Manager → Message templates**, create these two. Category must be
-**Utility** (marketing category costs ~7x more and can be rejected for
-transactional content).
+In **WhatsApp Manager → Message templates**, create these. Category must be
+**Utility** — but read "The category trap on template 3" below before submitting
+the third one, because Meta no longer rejects a wrong category, it silently
+re-bills you for it.
 
 **Template 1** — name: `appointment_confirmed`, language: `English`
 
@@ -107,11 +135,11 @@ To book a new appointment, call 08354 220996 or visit our website. We are sorry 
 
 **Template 3** — name: `appointment_completed`, language: `English`
 
-Sent when staff mark an appointment **Completed**, so the patient gets a thank
-you and their follow-up instructions in writing rather than only verbally.
+Sent when staff mark an appointment **Completed**. **Ships switched off** — read
+the category warning below before enabling it.
 
 ```
-Namaste {{1}}, thank you for visiting Shanti Hospital, Bagalkot.
+Namaste {{1}}, this is the record of your visit to Shanti Hospital, Bagalkot.
 
 Doctor: {{2}}
 Department: {{3}}
@@ -119,14 +147,47 @@ Visited: {{4}}
 Time: {{5}}
 Reference: {{6}}
 
-We hope you are feeling better. Please follow the advice and medication given, and keep your prescription for your next visit. For a follow-up or any concern, call 08354 220996 — we are here 24x7.
-
-Wishing you a quick recovery. Reaching the unreached.
+Please follow the prescription given during your consultation. To discuss this consultation, call 08354 220996 and quote the reference above.
 ```
 
-Still **Utility**, not Marketing: it is the closing record of a transaction the
-patient initiated, not a promotion. Submitting it as Marketing costs ~7x more and
-can be refused.
+> **Correction.** An earlier version of this file claimed this template is
+> "still Utility, not Marketing" and that a wrong category would be *refused*.
+> Both parts were wrong. See below.
+
+---
+
+## The category trap on template 3
+
+Templates 1 and 2 are safely **Utility**. Each references a live transaction the
+patient started, carrying a reference number, doctor, date and time.
+
+Template 3 is not safe, for a structural reason rather than a wording one: **by
+the time it sends, the visit is over.** There is no ongoing transaction to
+update, and that is the test Utility is judged against.
+
+What makes this dangerous rather than merely annoying: since **9 April 2025**
+Meta **re-categorises** a template instead of rejecting it. Submit something as
+Utility with promotional phrasing and it is approved as **Marketing** and billed
+at roughly **7x** — with no rejection to warn you. You find out on the invoice.
+
+The wording above was stripped specifically to improve its odds. Removed from an
+earlier draft:
+
+| Removed | Why |
+|---|---|
+| "Reaching the unreached" | The hospital's motto — a slogan |
+| "we are here 24x7" | Promoting a service |
+| "keep your prescription for your next visit" | Nudging a future visit |
+| "Wishing you a quick recovery" | Goodwill, not a transaction record |
+
+Even stripped, Utility is **not guaranteed**. And cost is not the only exposure:
+if Meta treats this as marketing, you are sending marketing to patients who
+consented only to an appointment, which needs its own basis under the DPDP Act.
+
+**Recommended:** submit templates 1 and 2 only. Leave `notify_on_complete` at its
+default of off until the hospital has decided it accepts both the cost and the
+consent position. Enabling it later needs no code change — it is a toggle under
+Admin → Settings.
 
 **The variable order is fixed**, is the same for all three templates, and must
 match the function exactly:
@@ -198,9 +259,9 @@ number on screen when they booked.
 | Status | Template | Switch |
 |---|---|---|
 | Pending | — nothing sent | — |
-| Confirmed | `appointment_confirmed` | Send on status "Confirmed" |
-| Cancelled | `appointment_cancelled` | Send on status "Cancelled" |
-| Completed | `appointment_completed` | Send on status "Completed" |
+| Confirmed | `appointment_confirmed` | Send on status "Confirmed" — **on** by default |
+| Cancelled | `appointment_cancelled` | Send on status "Cancelled" — **on** by default |
+| Completed | `appointment_completed` | Send on status "Completed" — **off** by default |
 
 The mapping lives in one place — `MESSAGE_KINDS` in
 `src/utils/messageTemplates.js` — and the Edge Function keeps its own allow-list

@@ -50,7 +50,25 @@ Reference: {{6}}
 
 To book a new appointment, call 08354 220996 or visit our website. We are sorry for the inconvenience.`;
 
-export const DEFAULT_COMPLETED_BODY = `Namaste {{1}}, thank you for visiting Shanti Hospital, Bagalkot.
+/**
+ * Post-visit record.
+ *
+ * Written to survive Meta's template review as UTILITY, which constrains the
+ * wording more than it looks. Since April 2025 Meta silently RE-CATEGORISES a
+ * template rather than rejecting it, so promotional language does not get
+ * bounced back — it gets approved as MARKETING and billed at roughly 7x.
+ *
+ * Deliberately removed from an earlier draft: the hospital's "Reaching the
+ * unreached" motto (a slogan), "we are here 24x7" (promoting a service),
+ * "keep your prescription for your next visit" (nudging a future visit) and
+ * "wishing you a quick recovery" (goodwill rather than a transaction record).
+ *
+ * What is left refers to one specific appointment throughout, and ties the
+ * contact line to that appointment's reference rather than inviting the patient
+ * to transact again. Utility is still not guaranteed — the visit is over, so
+ * there is no ongoing transaction to update, which is the test Meta applies.
+ */
+export const DEFAULT_COMPLETED_BODY = `Namaste {{1}}, this is the record of your visit to Shanti Hospital, Bagalkot.
 
 Doctor: {{2}}
 Department: {{3}}
@@ -58,9 +76,7 @@ Visited: {{4}}
 Time: {{5}}
 Reference: {{6}}
 
-We hope you are feeling better. Please follow the advice and medication given, and keep your prescription for your next visit. For a follow-up or any concern, call 08354 220996 — we are here 24x7.
-
-Wishing you a quick recovery. Reaching the unreached.`;
+Please follow the prescription given during your consultation. To discuss this consultation, call 08354 220996 and quote the reference above.`;
 
 /**
  * The three patient-facing messages, in the order a visit moves through them.
@@ -94,8 +110,11 @@ export const MESSAGE_KINDS = [
   },
   {
     id: 'completed',
-    label: 'Thank you after the visit',
-    description: 'Sent once the consultation is marked Completed.',
+    label: 'Visit summary',
+    description:
+      'Sent once the consultation is marked Completed. Off by default — Meta may ' +
+      'bill this as a Marketing message, which also needs a separate consent basis ' +
+      'under DPDP. Turn it on only once that has been decided.',
     status: 'Completed',
     settingKey: 'whatsappCompletedBody',
     toggleKey: 'notifyOnComplete',

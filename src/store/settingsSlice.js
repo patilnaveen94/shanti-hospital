@@ -21,8 +21,16 @@ const initialState = {
   whatsappEnabled: true,
   notifyOnConfirm: true,
   notifyOnCancel: true,
-  // Post-visit thank you, sent when an appointment is marked Completed.
-  notifyOnComplete: true,
+  /**
+   * Post-visit summary, sent when an appointment is marked Completed.
+   *
+   * Defaults OFF, unlike the other two. The visit is already over, so Meta may
+   * classify this template as Marketing rather than Utility — and since April
+   * 2025 it does that silently instead of rejecting it, at roughly 7x the cost.
+   * Marketing to patients also needs its own consent basis under DPDP. Both are
+   * decisions for the hospital, not a default.
+   */
+  notifyOnComplete: false,
   /**
    * Mirrors of the Meta-approved template bodies. These do NOT change what
    * WhatsApp sends — Meta owns the approved wording. They exist so the admin

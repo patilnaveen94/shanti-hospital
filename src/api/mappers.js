@@ -128,9 +128,13 @@ export function settingsFromRow(row) {
     whatsappEnabled: row.whatsapp_enabled !== false,
     notifyOnConfirm: row.notify_on_confirm !== false,
     notifyOnCancel: row.notify_on_cancel !== false,
-    // Null until updates-04.sql runs, and `!== false` means the thank-you
-    // defaults to on rather than being silently disabled by a missing column.
-    notifyOnComplete: row.notify_on_complete !== false,
+    /*
+     * Explicit `=== true`, unlike the two above. The visit summary is opt-in:
+     * a null column (updates-04.sql not yet run) or a false value both mean
+     * "do not send". Reading it as `!== false` would have turned it on for
+     * every hospital the moment the migration landed.
+     */
+    notifyOnComplete: row.notify_on_complete === true,
     // Null until updates-02/04.sql run; the slice then falls back to defaults.
     whatsappConfirmedBody: row.whatsapp_confirmed_body || '',
     whatsappCancelledBody: row.whatsapp_cancelled_body || '',
