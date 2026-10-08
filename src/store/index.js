@@ -6,6 +6,7 @@ import backend from './backendSlice';
 import departments from './departmentsSlice';
 import doctors from './doctorsSlice';
 import notifications from './notificationsSlice';
+import records from './recordsSlice';
 import settings from './settingsSlice';
 import testimonials from './testimonialsSlice';
 import ui from './uiSlice';
@@ -22,6 +23,7 @@ export const store = configureStore({
     ui,
     backend,
     notifications,
+    records,
     settings,
     testimonials,
     unavailability,

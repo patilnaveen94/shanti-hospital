@@ -14,6 +14,13 @@ import {
   departmentToRow,
   doctorFromRow,
   doctorToRow,
+  patientCandidateFromRow,
+  patientFromRow,
+  patientToRow,
+  prescriptionFileFromRow,
+  prescriptionFileToRow,
+  prescriptionFromRow,
+  prescriptionToRow,
   settingsFromRow,
   settingsToRow,
   testimonialFromRow,
@@ -495,4 +502,278 @@ export async function seedDatabase({ departments, doctors, announcements }) {
     doctors: doctors.length,
     announcements: announcements.length,
   };
+}
+
+/* ===================== patients ===================== */
+
+export const RX_BUCKET = 'prescriptions';
+
+/**
+ * Candidate patients for a phone number.
+ *
+ * Goes through the `find_patients_by_phone` RPC rather than querying the table,
+ * so the join and the ordering live in one place. Always returns a list, even
+ * for a single hit: the caller must confirm, because one match on a phone is
+ * exactly the shared-family-number case.
+ */
+export async function findPatientsByPhone(phone) {
+  const db = requireClient();
+  const { data, error } = await db.rpc('find_patients_by_phone', { p_phone: phone });
+  if (error) throw new Error(describeError(error));
+  return (data || []).map(patientCandidateFromRow);
+}
+
+export async function fetchPatient(id) {
+  const db = requireClient();
+  const row = unwrap(
+    await db
+      .from('patients')
+      .select('*, patient_phones ( phone, is_primary, label )')
+      .eq('id', id)
+      .single()
+  );
+  return patientFromRow(row);
+}
+
+export async function searchPatients(term, limit = 20) {
+  const db = requireClient();
+  const needle = `%${(term || '').trim()}%`;
+  const rows = unwrap(
+    await db
+      .from('patients')
+      .select('*, patient_phones ( phone, is_primary, label )')
+      .or(`full_name.ilike.${needle},mrn.ilike.${needle}`)
+      .order('updated_at', { ascending: false })
+      .limit(limit)
+  );
+  return rows.map(patientFromRow);
+}
+
+/**
+ * Create a patient and attach the number that found them.
+ *
+ * Two statements rather than one RPC, so a duplicate phone on an existing
+ * patient does not roll back the patient row. The phone insert is idempotent
+ * via the composite primary key.
+ */
+export async function insertPatient(patient, phone, phoneLabel = '') {
+  const db = requireClient();
+  const row = unwrap(
+    await db.from('patients').insert(patientToRow(patient)).select().single()
+  );
+
+  if (phone) {
+    const { error } = await db
+      .from('patient_phones')
+      .upsert(
+        { patient_id: row.id, phone, is_primary: true, label: phoneLabel },
+        { onConflict: 'patient_id,phone' }
+      );
+    if (error) throw new Error(describeError(error));
+  }
+
+  return fetchPatient(row.id);
+}
+
+export async function updatePatientRow(id, changes) {
+  const db = requireClient();
+  const patch = patientToRow(changes);
+  unwrap(await db.from('patients').update(patch).eq('id', id).select().single());
+  return fetchPatient(id);
+}
+
+/** Attach another number to an existing patient — they changed phones. */
+export async function addPatientPhone(patientId, phone, label = '', isPrimary = false) {
+  const db = requireClient();
+  const { error } = await db
+    .from('patient_phones')
+    .upsert(
+      { patient_id: patientId, phone, is_primary: isPrimary, label },
+      { onConflict: 'patient_id,phone' }
+    );
+  if (error) throw new Error(describeError(error));
+  return fetchPatient(patientId);
+}
+
+/* ===================== prescriptions ===================== */
+
+/**
+ * Columns the history list needs.
+ *
+ * `ocr_text` is deliberately excluded. It can run to several kilobytes per
+ * row and nothing in the list renders it, so selecting it would drag megabytes
+ * across a 4G connection to display a date and a doctor's name.
+ */
+const RX_LIST_COLUMNS =
+  'id, patient_id, appointment_id, doctor_id, department_id, issued_at, notes_text, ' +
+  'ocr_status, created_at, prescription_files ( id, thumb_path, storage_path, mime_type, page_no, width, height, bytes )';
+
+/**
+ * One page of a patient's prescription history, newest first.
+ *
+ * Paginated because a long-standing patient may have dozens of visits and a
+ * phone should not load all of them. Backed by the
+ * `(patient_id, issued_at desc)` index.
+ */
+export async function fetchPatientHistory(patientId, { limit = 10, offset = 0 } = {}) {
+  const db = requireClient();
+  const { data, error, count } = await db
+    .from('prescriptions')
+    .select(RX_LIST_COLUMNS, { count: 'exact' })
+    .eq('patient_id', patientId)
+    .order('issued_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(describeError(error));
+  return {
+    items: (data || []).map(prescriptionFromRow),
+    total: count ?? 0,
+  };
+}
+
+/** The full record, including the unverified OCR text. */
+export async function fetchPrescription(id) {
+  const db = requireClient();
+  const row = unwrap(
+    await db
+      .from('prescriptions')
+      .select('*, prescription_files ( * )')
+      .eq('id', id)
+      .single()
+  );
+  return prescriptionFromRow(row);
+}
+
+export async function insertPrescription(rx) {
+  const db = requireClient();
+  const row = unwrap(
+    await db.from('prescriptions').insert(prescriptionToRow(rx)).select().single()
+  );
+  return prescriptionFromRow(row);
+}
+
+export async function updatePrescriptionRow(id, changes) {
+  const db = requireClient();
+  const patch = {};
+  if ('notesText' in changes) patch.notes_text = (changes.notesText || '').trim();
+  if ('issuedAt' in changes) patch.issued_at = changes.issuedAt;
+  if ('doctorId' in changes) patch.doctor_id = changes.doctorId || null;
+  if ('departmentId' in changes) patch.department_id = changes.departmentId || null;
+  if ('ocrStatus' in changes) patch.ocr_status = changes.ocrStatus;
+
+  const row = unwrap(
+    await db.from('prescriptions').update(patch).eq('id', id).select().single()
+  );
+  return prescriptionFromRow(row);
+}
+
+export async function deletePrescription(id) {
+  const db = requireClient();
+  unwrap(await db.from('prescriptions').delete().eq('id', id).select());
+  return id;
+}
+
+/* ---------------- files and storage ---------------- */
+
+/** `rx/<patientId>/<prescriptionId>/p<n>.jpg` */
+function storageKey(patientId, prescriptionId, pageNo, suffix = '') {
+  return `rx/${patientId}/${prescriptionId}/p${pageNo}${suffix}.jpg`;
+}
+
+/**
+ * Upload one prepared page and register it.
+ *
+ * Order matters: bytes go to storage first, and only a successful upload
+ * inserts the row. The reverse order would leave rows pointing at files that
+ * do not exist, which is far harder to detect than an orphaned object.
+ *
+ * `prepared` is the result of prepareDocumentImage().
+ */
+export async function uploadPrescriptionPage(prescription, prepared, pageNo) {
+  const db = requireClient();
+  const fullPath = storageKey(prescription.patientId, prescription.id, pageNo);
+  const thumbPath = storageKey(prescription.patientId, prescription.id, pageNo, '-thumb');
+
+  const up = await db.storage
+    .from(RX_BUCKET)
+    .upload(fullPath, prepared.full.blob, { contentType: 'image/jpeg', upsert: true });
+  if (up.error) throw new Error(describeError(up.error));
+
+  // A missing thumbnail degrades the list to a placeholder; it must not fail
+  // the page upload, which is the part that carries the clinical content.
+  let storedThumb = null;
+  const thumbUp = await db.storage
+    .from(RX_BUCKET)
+    .upload(thumbPath, prepared.thumb.blob, { contentType: 'image/jpeg', upsert: true });
+  if (!thumbUp.error) storedThumb = thumbPath;
+
+  const row = unwrap(
+    await db
+      .from('prescription_files')
+      .insert(
+        prescriptionFileToRow({
+          prescriptionId: prescription.id,
+          storagePath: fullPath,
+          thumbPath: storedThumb,
+          mimeType: 'image/jpeg',
+          bytes: prepared.full.bytes,
+          width: prepared.full.width,
+          height: prepared.full.height,
+          pageNo,
+          checksum: prepared.checksum,
+        })
+      )
+      .select()
+      .single()
+  );
+
+  return prescriptionFileFromRow(row);
+}
+
+/**
+ * Open a prescription for viewing.
+ *
+ * Calls the `open_prescription` RPC, which writes the access-log entry and
+ * returns the file rows in the same statement — so viewing a clinical record
+ * cannot be done without leaving a trace, rather than relying on the client to
+ * log politely.
+ */
+export async function openPrescriptionFiles(prescriptionId) {
+  const db = requireClient();
+  const { data, error } = await db.rpc('open_prescription', {
+    p_prescription_id: prescriptionId,
+  });
+  if (error) throw new Error(describeError(error));
+  return (data || []).map(prescriptionFileFromRow);
+}
+
+/**
+ * Short-lived signed URLs for a set of storage paths.
+ *
+ * 5 minutes: long enough to open and zoom a page, short enough that a URL
+ * copied out of devtools or a screenshot is useless by the time it travels.
+ * The bucket is private, so this is the only way to read an object.
+ */
+export async function signPrescriptionPaths(paths, expiresIn = 300) {
+  const db = requireClient();
+  const wanted = (paths || []).filter(Boolean);
+  if (!wanted.length) return {};
+
+  const { data, error } = await db.storage.from(RX_BUCKET).createSignedUrls(wanted, expiresIn);
+  if (error) throw new Error(describeError(error));
+
+  const byPath = {};
+  (data || []).forEach((entry) => {
+    if (entry.signedUrl && !entry.error) byPath[entry.path] = entry.signedUrl;
+  });
+  return byPath;
+}
+
+/** Remove a page's objects and its row. Admin-only by RLS. */
+export async function deletePrescriptionFile(file) {
+  const db = requireClient();
+  const paths = [file.storagePath, file.thumbPath].filter(Boolean);
+  if (paths.length) await db.storage.from(RX_BUCKET).remove(paths);
+  unwrap(await db.from('prescription_files').delete().eq('id', file.id).select());
+  return file.id;
 }

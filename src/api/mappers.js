@@ -250,3 +250,141 @@ export function appointmentToRow(a) {
     status: a.status || 'Pending',
   };
 }
+
+/* ---------------- patients ---------------- */
+
+/**
+ * Age is derived from `date_of_birth` when present and only falls back to the
+ * stored `age_years`. A stored age is wrong within a year of being entered,
+ * which matters when it feeds a dosing decision.
+ */
+export function ageFromPatient(row) {
+  if (row?.date_of_birth) {
+    const dob = new Date(`${row.date_of_birth}T00:00:00`);
+    if (!Number.isNaN(dob.getTime())) {
+      const now = new Date();
+      let years = now.getFullYear() - dob.getFullYear();
+      const monthDelta = now.getMonth() - dob.getMonth();
+      if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) years -= 1;
+      return Math.max(0, years);
+    }
+  }
+  return row?.age_years ?? null;
+}
+
+export function patientFromRow(row) {
+  return {
+    id: row.id,
+    mrn: row.mrn,
+    fullName: row.full_name,
+    dateOfBirth: row.date_of_birth || '',
+    ageYears: row.age_years ?? null,
+    age: ageFromPatient(row),
+    gender: row.gender,
+    notes: row.notes || '',
+    phones: (row.patient_phones || []).map((p) => ({
+      phone: p.phone,
+      isPrimary: Boolean(p.is_primary),
+      label: p.label || '',
+    })),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function patientToRow(patient) {
+  const row = {
+    full_name: (patient.fullName || '').trim(),
+    gender: patient.gender,
+    notes: (patient.notes || '').trim(),
+  };
+  // Send only the age source that was actually supplied; the table's
+  // `patients_age_known` constraint requires at least one.
+  if (patient.dateOfBirth) row.date_of_birth = patient.dateOfBirth;
+  else row.date_of_birth = null;
+  row.age_years = patient.ageYears == null || patient.ageYears === '' ? null : Number(patient.ageYears);
+  return row;
+}
+
+/** Row shape returned by the `find_patients_by_phone` RPC. */
+export function patientCandidateFromRow(row) {
+  return {
+    id: row.id,
+    mrn: row.mrn,
+    fullName: row.full_name,
+    gender: row.gender,
+    age: ageFromPatient(row),
+    phoneLabel: row.phone_label || '',
+    lastVisit: row.last_visit || null,
+    visitCount: Number(row.visit_count) || 0,
+  };
+}
+
+/* ---------------- prescriptions ---------------- */
+
+export function prescriptionFromRow(row) {
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    appointmentId: row.appointment_id || '',
+    doctorId: row.doctor_id || '',
+    departmentId: row.department_id || '',
+    issuedAt: row.issued_at,
+    notesText: row.notes_text || '',
+    // Machine-extracted and UNVERIFIED. Never render this as the
+    // prescription itself — see messageTemplates-style note in updates-05.sql.
+    ocrText: row.ocr_text || '',
+    ocrStatus: row.ocr_status || 'none',
+    ocrConfidence: row.ocr_confidence == null ? null : Number(row.ocr_confidence),
+    ocrError: row.ocr_error || '',
+    createdBy: row.created_by || '',
+    createdAt: row.created_at,
+    // Present when the query joined files; the history list selects only
+    // the thumbnail columns it needs.
+    files: (row.prescription_files || []).map(prescriptionFileFromRow),
+    pageCount: row.page_count ?? (row.prescription_files || []).length,
+  };
+}
+
+export function prescriptionToRow(rx) {
+  return {
+    patient_id: rx.patientId,
+    appointment_id: rx.appointmentId || null,
+    doctor_id: rx.doctorId || null,
+    department_id: rx.departmentId || null,
+    issued_at: rx.issuedAt || new Date().toISOString(),
+    notes_text: (rx.notesText || '').trim(),
+    // `queued` only when there is an image to read and the hospital has
+    // switched OCR on; the app decides, not this mapper.
+    ocr_status: rx.ocrStatus || 'none',
+  };
+}
+
+export function prescriptionFileFromRow(row) {
+  return {
+    id: row.id || row.file_id,
+    prescriptionId: row.prescription_id || '',
+    storagePath: row.storage_path,
+    thumbPath: row.thumb_path || '',
+    mimeType: row.mime_type,
+    bytes: Number(row.bytes) || 0,
+    width: row.width ?? null,
+    height: row.height ?? null,
+    pageNo: Number(row.page_no) || 1,
+    checksum: row.checksum || '',
+  };
+}
+
+export function prescriptionFileToRow(file) {
+  return {
+    prescription_id: file.prescriptionId,
+    storage_path: file.storagePath,
+    thumb_path: file.thumbPath || null,
+    mime_type: file.mimeType,
+    bytes: file.bytes,
+    width: file.width ?? null,
+    height: file.height ?? null,
+    page_no: file.pageNo,
+    checksum: file.checksum || null,
+  };
+}

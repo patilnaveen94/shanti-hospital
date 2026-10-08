@@ -7,6 +7,7 @@ import {
   CircleCheck,
   Cloud,
   Database,
+  FolderHeart,
   HardDrive,
   Layers,
   LogOut,
@@ -23,6 +24,7 @@ import AppointmentTracker from './AppointmentTracker';
 import AvailabilityManager from './AvailabilityManager';
 import DepartmentManager from './DepartmentManager';
 import DoctorManager from './DoctorManager';
+import PatientRecords from './PatientRecords';
 import SettingsManager from './SettingsManager';
 import TestimonialManager from './TestimonialManager';
 import ConfirmDialog from '../common/ConfirmDialog';
@@ -41,6 +43,7 @@ import {
   selectStaffSession,
   staffSignOut,
 } from '../../store/backendSlice';
+import { resetRecords } from '../../store/recordsSlice';
 import { resetSettings } from '../../store/settingsSlice';
 import {
   loadAllTestimonials,
@@ -52,6 +55,7 @@ import { pushToast, signOutAdmin } from '../../store/uiSlice';
 
 const TABS = [
   { id: 'appointments', label: 'Appointments', icon: CalendarCheck2 },
+  { id: 'records', label: 'Patient records', icon: FolderHeart },
   { id: 'doctors', label: 'Doctors', icon: Stethoscope },
   { id: 'availability', label: 'Availability', icon: CalendarOff },
   { id: 'departments', label: 'Departments', icon: Layers },
@@ -96,6 +100,7 @@ export default function AdminDashboard() {
     dispatch(resetUnavailability());
     dispatch(resetSettings());
     dispatch(resetTestimonials());
+    dispatch(resetRecords());
     dispatch(pushToast('Demo data restored to its original state', 'info'));
   };
 
@@ -223,6 +228,7 @@ export default function AdminDashboard() {
 
         <div key={tab} className="animate-fade-in">
           {tab === 'appointments' && <AppointmentTracker />}
+          {tab === 'records' && <PatientRecords />}
           {tab === 'doctors' && <DoctorManager />}
           {tab === 'availability' && <AvailabilityManager />}
           {tab === 'departments' && <DepartmentManager />}

@@ -45,7 +45,30 @@ Every file is guarded, so re-running is safe.
 | 3 | [`supabase/updates-01.sql`](./supabase/updates-01.sql) | Hospital settings, per-doctor slot length, walk-in source, doctor leave / blocked dates |
 | 4 | [`supabase/updates-02.sql`](./supabase/updates-02.sql) | Per-doctor fee visibility, patient-message configuration |
 | 5 | [`supabase/updates-03.sql`](./supabase/updates-03.sql) | `testimonials` + the `public_testimonials` view that moderation depends on |
-| 6 | [`supabase/updates-04.sql`](./supabase/updates-04.sql) | The post-visit thank-you message sent when an appointment is marked Completed |
+| 6 | [`supabase/updates-04.sql`](./supabase/updates-04.sql) | The post-visit message sent when an appointment is marked Completed |
+| 7 | [`supabase/updates-05.sql`](./supabase/updates-05.sql) | Patient records and prescriptions — **read the warning at the top of that file first** |
+
+### Before running `updates-05.sql`
+
+That migration crosses a line the earlier schema drew on purpose. `schema.sql`
+notes above `appointments` that the phase was kept *"out of medical-record
+territory"*. Prescriptions are clinical records, which brings:
+
+- **DPDP** sensitive-personal-data duties — purpose limitation, breach
+  reporting, access and erasure requests.
+- **Statutory medical-record retention** under state medical council rules,
+  which *conflicts* with DPDP erasure rights. Nothing in the migration
+  auto-deletes; get a medico-legal opinion, then encode the answer.
+- Possible **ABDM / FHIR R4** obligations if the hospital is empanelled under
+  PM-JAY. The column shapes map cleanly onto FHIR `Patient` and
+  `MedicationRequest`, but no FHIR layer is built.
+
+It also creates a **private storage bucket** (`prescriptions`) and gates
+clinical tables behind a new `is_clinician()` check — `admin` and `doctor` roles
+only. `front_desk` can register and find patients but cannot read prescriptions.
+Whoever scans prescriptions at your hospital needs one of the two clinical roles.
+
+**Do not run it on a project without backups.** The free tier has none.
 
 The single most important thing `schema.sql` does is that unique index: it makes
 double-booking impossible at the storage layer rather than hoping the app checks

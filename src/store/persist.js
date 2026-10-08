@@ -44,6 +44,12 @@ const PERSISTED = {
   unavailability: 'list',
   // Fee visibility, slot length, booking horizon, messaging switches.
   settings: 'object',
+  /**
+   * Patient records. Local mode holds demo patients plus prescription
+   * thumbnails; full pages need the database, because localStorage's ~5 MB
+   * would be gone after a dozen compressed pages.
+   */
+  records: 'object',
 };
 
 /** Slices rebuilt from seed when SEED_VERSION moves. */
@@ -54,15 +60,44 @@ const REFERENCE_SLICES = ['departments', 'doctors', 'announcements'];
  * submit would otherwise rehydrate `submitting: true` and leave the form's
  * button stuck on "Sending…" forever.
  */
-const TRANSIENT_FIELDS = { testimonials: ['submitting'] };
+/**
+ * Per-slice fields that must not survive a reload, mapped to the value to
+ * restore them to.
+ *
+ * Both halves matter. `configureStore` uses `preloadedState` for a slice AS IS
+ * — it does not merge it with the reducer's own `initialState` — so a field
+ * dropped on save is simply `undefined` on load, and a component reading
+ * `records.lookup.status` crashes. Dropping on write keeps storage small;
+ * re-seeding on read keeps the slice shape complete.
+ */
+const TRANSIENT_FIELDS = {
+  testimonials: { submitting: false },
+  records: {
+    // Signed image URLs expire within minutes; restoring them would show
+    // staff dead links. `lookup` is a half-finished search for a previous
+    // patient, which is worse than no search at all.
+    viewer: { open: false, prescriptionId: '', files: [], urls: {}, loading: false, error: '' },
+    lookup: { phone: '', status: 'idle', candidates: [] },
+    saving: false,
+  },
+};
 
-/** Copy a slice for storage, dropping its in-flight flags. */
+/** Copy a slice for storage, dropping its in-flight fields. */
 function stripTransient(key, slice) {
-  const drop = TRANSIENT_FIELDS[key];
-  if (!drop) return slice;
+  const spec = TRANSIENT_FIELDS[key];
+  if (!spec) return slice;
   const copy = { ...slice };
-  drop.forEach((field) => delete copy[field]);
+  Object.keys(spec).forEach((field) => delete copy[field]);
   return copy;
+}
+
+/** Put the dropped fields back, at their safe defaults. */
+function reseedTransient(key, slice) {
+  const spec = TRANSIENT_FIELDS[key];
+  if (!spec) return slice;
+  // Fresh clones: these defaults are mutable objects and Redux state must not
+  // share a reference with this module.
+  return { ...slice, ...JSON.parse(JSON.stringify(spec)) };
 }
 
 const canUseStorage = (() => {
@@ -118,7 +153,7 @@ export function loadState() {
     Object.entries(PERSISTED).forEach(([key, kind]) => {
       // On a seed upgrade, skip reference slices so the slice defaults win.
       if (stale && REFERENCE_SLICES.includes(key)) return;
-      if (isSliceShaped(parsed[key], kind)) hydrated[key] = parsed[key];
+      if (isSliceShaped(parsed[key], kind)) hydrated[key] = reseedTransient(key, parsed[key]);
     });
 
     if (stale) {
