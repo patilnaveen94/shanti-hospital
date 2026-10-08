@@ -6,6 +6,7 @@
 
 import { describeError, requireClient, supabase } from './client';
 import {
+  ageFromPatient,
   announcementFromRow,
   announcementToRow,
   appointmentFromRow,
@@ -776,4 +777,132 @@ export async function deletePrescriptionFile(file) {
   if (paths.length) await db.storage.from(RX_BUCKET).remove(paths);
   unwrap(await db.from('prescription_files').delete().eq('id', file.id).select());
   return file.id;
+}
+
+/* ===================== appointment ↔ patient ===================== */
+
+/**
+ * Past-record summary for a page of appointments, in one round trip.
+ *
+ * The appointment list needs "has this person been here before?" for every
+ * visible row. Asking per row is twenty requests to paint one screen, which on
+ * hospital 4G is the difference between a list that appears and one that
+ * crawls. Returns `{ [phone]: [candidate, ...] }` — several candidates where a
+ * family shares the number.
+ */
+export async function fetchHistorySummary(phones) {
+  const db = requireClient();
+  const unique = [...new Set((phones || []).filter(Boolean))];
+  if (!unique.length) return {};
+
+  const { data, error } = await db.rpc('patient_history_summary', { p_phones: unique });
+  if (error) throw new Error(describeError(error));
+
+  const byPhone = {};
+  (data || []).forEach((row) => {
+    const entry = {
+      id: row.patient_id,
+      mrn: row.mrn,
+      fullName: row.full_name,
+      gender: row.gender,
+      age: ageFromPatient(row),
+      visitCount: Number(row.visit_count) || 0,
+      lastVisit: row.last_visit || null,
+    };
+    byPhone[row.phone] = [...(byPhone[row.phone] || []), entry];
+  });
+  return byPhone;
+}
+
+/**
+ * Attach an appointment to a patient record.
+ *
+ * Pass `patientId` when staff picked an existing candidate; omit it to register
+ * a new patient from the appointment's own name, age and gender. The database
+ * function does the patient row, the phone binding and the appointment link in
+ * one statement so they cannot half-apply.
+ */
+export async function linkAppointmentPatient(appointmentId, patientId = null) {
+  const db = requireClient();
+  const { data, error } = await db.rpc('link_appointment_patient', {
+    p_appointment_id: appointmentId,
+    p_patient_id: patientId,
+  });
+  if (error) throw new Error(describeError(error));
+  return data; // patient id
+}
+
+/** Name, MRN or phone in one search. */
+export async function searchPatientRecords(term, limit = 25) {
+  const db = requireClient();
+  const { data, error } = await db.rpc('search_patient_records', {
+    p_term: (term || '').trim(),
+    p_limit: limit,
+  });
+  if (error) throw new Error(describeError(error));
+
+  return (data || []).map((row) => ({
+    id: row.patient_id,
+    mrn: row.mrn,
+    fullName: row.full_name,
+    gender: row.gender,
+    age: ageFromPatient(row),
+    phones: (row.phones || []).map((phone) => ({ phone, isPrimary: false, label: '' })),
+    visitCount: Number(row.visit_count) || 0,
+    lastVisit: row.last_visit || null,
+  }));
+}
+
+/**
+ * Visit history including why the patient came.
+ *
+ * Reads `patient_visit_history`, which joins the appointment so the symptoms
+ * recorded at booking sit next to what was prescribed. That pairing is most of
+ * the clinical value of a history — a prescription without the complaint is
+ * hard to interpret a year later.
+ */
+export async function fetchVisitHistory(patientId, { limit = 10, offset = 0 } = {}) {
+  const db = requireClient();
+  const { data, error, count } = await db
+    .from('patient_visit_history')
+    .select('*', { count: 'exact' })
+    .eq('patient_id', patientId)
+    .order('issued_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(describeError(error));
+
+  // The view carries no files; fetch thumbnails for just this page.
+  const ids = (data || []).map((r) => r.prescription_id);
+  let filesByRx = {};
+  if (ids.length) {
+    const { data: files } = await db
+      .from('prescription_files')
+      .select('id, prescription_id, storage_path, thumb_path, mime_type, bytes, width, height, page_no')
+      .in('prescription_id', ids)
+      .order('page_no');
+    (files || []).forEach((f) => {
+      filesByRx[f.prescription_id] = [...(filesByRx[f.prescription_id] || []), prescriptionFileFromRow(f)];
+    });
+  }
+
+  return {
+    items: (data || []).map((row) => ({
+      id: row.prescription_id,
+      patientId: row.patient_id,
+      appointmentId: row.appointment_id || '',
+      appointmentRef: row.appointment_ref || '',
+      appointmentDate: row.appointment_date || '',
+      slot: row.slot || '',
+      symptoms: row.symptoms || '',
+      issuedAt: row.issued_at,
+      notesText: row.notes_text || '',
+      ocrStatus: row.ocr_status || 'none',
+      doctorId: row.doctor_id || '',
+      departmentId: row.department_id || '',
+      pageCount: Number(row.page_count) || 0,
+      files: filesByRx[row.prescription_id] || [],
+    })),
+    total: count ?? 0,
+  };
 }

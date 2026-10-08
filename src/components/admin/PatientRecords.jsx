@@ -6,6 +6,7 @@ import {
   HardDrive,
   IdCard,
   Phone,
+  Search,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -14,7 +15,7 @@ import PatientPicker from './PatientPicker';
 import PrescriptionForm from './PrescriptionForm';
 import PrescriptionHistory from './PrescriptionHistory';
 import { isCloudMode } from '../../api/client';
-import { loadPatient, selectPatientsById } from '../../store/recordsSlice';
+import { findPatients, loadPatient, selectAllPatients, selectPatientsById } from '../../store/recordsSlice';
 
 /**
  * Patient records tab.
@@ -27,10 +28,23 @@ export default function PatientRecords() {
   const dispatch = useDispatch();
   const patientsById = useSelector(selectPatientsById);
 
+  const allPatients = useSelector(selectAllPatients);
+
   const [activeId, setActiveId] = useState('');
   const [recording, setRecording] = useState(false);
+  const [term, setTerm] = useState('');
 
   const active = activeId ? patientsById[activeId] : null;
+
+  const needle = term.trim().toLowerCase();
+  const results = needle.length >= 2
+    ? allPatients.filter(
+        (p) =>
+          p.fullName.toLowerCase().includes(needle) ||
+          (p.mrn || '').toLowerCase().includes(needle) ||
+          (p.phones || []).some((x) => x.phone.startsWith(needle))
+      )
+    : [];
 
   const pick = (candidate) => {
     setActiveId(candidate.id);
@@ -139,6 +153,54 @@ export default function PatientRecords() {
 
       <div className="card p-4 sm:p-5">
         <PatientPicker onPicked={pick} />
+
+        {/* Name or MRN, for when the number is not to hand. */}
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <label className="label" htmlFor="pat-search">
+            Or search by name or hospital number
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input
+              id="pat-search"
+              type="search"
+              value={term}
+              onChange={(e) => {
+                setTerm(e.target.value);
+                if (e.target.value.trim().length >= 2) dispatch(findPatients(e.target.value));
+              }}
+              placeholder="e.g. Kamble, or SH-2026-00001"
+              className="input pl-10"
+            />
+          </div>
+
+          {term.trim().length >= 2 && (
+            <ul className="mt-2.5 space-y-2">
+              {results.length ? (
+                results.map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => pick(p)}
+                      className="tap flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50/40"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-semibold text-slate-900">{p.fullName}</span>
+                        <span className="mt-0.5 block text-[11.5px] text-slate-500">
+                          <span className="font-mono font-semibold text-primary-700">{p.mrn}</span>
+                          {p.phones?.[0] ? ` · ${p.phones[0].phone}` : ''}
+                          {p.visitCount != null ? ` · ${p.visitCount} record${p.visitCount === 1 ? '' : 's'}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <li className="px-1 py-2 text-[12.5px] text-slate-500">No patient matches that.</li>
+              )}
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Why the phone number is not the identity — stated where staff will

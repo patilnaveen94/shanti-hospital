@@ -47,6 +47,7 @@ Every file is guarded, so re-running is safe.
 | 5 | [`supabase/updates-03.sql`](./supabase/updates-03.sql) | `testimonials` + the `public_testimonials` view that moderation depends on |
 | 6 | [`supabase/updates-04.sql`](./supabase/updates-04.sql) | The post-visit message sent when an appointment is marked Completed |
 | 7 | [`supabase/updates-05.sql`](./supabase/updates-05.sql) | Patient records and prescriptions — **read the warning at the top of that file first** |
+| 8 | [`supabase/updates-06.sql`](./supabase/updates-06.sql) | Links appointments to patient records, so prescriptions are added from the appointment list |
 
 ### Before running `updates-05.sql`
 

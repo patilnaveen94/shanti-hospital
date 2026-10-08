@@ -3,14 +3,16 @@ import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
 import { isCloudMode } from '../api/client';
 import {
   addPatientPhone,
+  fetchHistorySummary,
   fetchPatient,
-  fetchPatientHistory,
   fetchPrescription,
+  fetchVisitHistory,
   findPatientsByPhone,
   insertPatient,
   insertPrescription,
+  linkAppointmentPatient,
   openPrescriptionFiles,
-  searchPatients,
+  searchPatientRecords,
   signPrescriptionPaths,
   updatePatientRow,
   updatePrescriptionRow,
@@ -44,6 +46,14 @@ const initialState = {
   patientsById: {},
   /** { [patientId]: { items, total, loading, loaded } } */
   historyByPatient: {},
+  /**
+   * Past-record summary keyed by phone, for the appointment list.
+   * `{ [phone]: [{ id, mrn, fullName, visitCount, lastVisit }, ...] }`
+   * Several entries where a family shares the number.
+   */
+  summaryByPhone: {},
+  /** { [appointmentId]: patientId } — resolved links, so rows know their patient. */
+  patientByAppointment: {},
   saving: false,
   /** Full-page viewer. `urls` are signed and expire, so they are not persisted. */
   viewer: { open: false, prescriptionId: '', files: [], urls: {}, loading: false, error: '' },
@@ -168,6 +178,7 @@ export const loadPatient = createAsyncThunk(
   }
 );
 
+/** Name, MRN or phone. Backs the records search box. */
 export const findPatients = createAsyncThunk(
   'records/findPatients',
   async (term, { getState }) => {
@@ -177,10 +188,101 @@ export const findPatients = createAsyncThunk(
         (p) =>
           !needle ||
           p.fullName.toLowerCase().includes(needle) ||
-          (p.mrn || '').toLowerCase().includes(needle)
+          (p.mrn || '').toLowerCase().includes(needle) ||
+          (p.phones || []).some((x) => x.phone.startsWith(needle))
       );
     }
-    return await searchPatients(term);
+    return await searchPatientRecords(term);
+  }
+);
+
+/**
+ * Past-record counts for a page of appointments, in one request.
+ *
+ * Called with every phone number visible in the list. Without the batch this
+ * would be one query per row, which is twenty round trips to paint one screen.
+ */
+export const loadHistorySummary = createAsyncThunk(
+  'records/loadHistorySummary',
+  async (phones, { getState, rejectWithValue }) => {
+    if (!isCloudMode) {
+      // Local mode: derive the same shape from the demo patients in the store.
+      const { patientsById, historyByPatient } = getState().records;
+      const wanted = new Set((phones || []).filter(Boolean));
+      const byPhone = {};
+
+      Object.values(patientsById).forEach((p) => {
+        (p.phones || []).forEach((ph) => {
+          if (!wanted.has(ph.phone)) return;
+          const items = historyByPatient[p.id]?.items || [];
+          byPhone[ph.phone] = [
+            ...(byPhone[ph.phone] || []),
+            {
+              id: p.id,
+              mrn: p.mrn,
+              fullName: p.fullName,
+              gender: p.gender,
+              age: p.age ?? p.ageYears,
+              visitCount: items.length,
+              lastVisit: items[0]?.issuedAt || null,
+            },
+          ];
+        });
+      });
+      return byPhone;
+    }
+
+    try {
+      return await fetchHistorySummary(phones);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+/**
+ * Attach an appointment to a patient record.
+ *
+ * `patientId` null means "register a new patient from this appointment's own
+ * details". Either way a human made the choice — nothing here infers identity
+ * from the phone number.
+ */
+export const linkAppointment = createAsyncThunk(
+  'records/linkAppointment',
+  async ({ appointment, patientId = null }, { dispatch, getState, rejectWithValue }) => {
+    if (!isCloudMode) {
+      let resolved = patientId;
+
+      if (!resolved) {
+        const created = await dispatch(
+          createPatient({
+            patient: {
+              fullName: appointment.patient.name,
+              ageYears: appointment.patient.age,
+              gender: appointment.patient.gender || 'Other',
+            },
+            phone: appointment.patient.phone,
+          })
+        );
+        if (created.meta.requestStatus !== 'fulfilled') return rejectWithValue('Could not create patient.');
+        resolved = created.payload.id;
+      }
+
+      return {
+        appointmentId: appointment.id,
+        patientId: resolved,
+        patient: getState().records.patientsById[resolved] || null,
+      };
+    }
+
+    try {
+      const resolved = await linkAppointmentPatient(appointment.id, patientId);
+      const patient = await fetchPatient(resolved);
+      return { appointmentId: appointment.id, patientId: resolved, patient };
+    } catch (error) {
+      dispatch(pushToast(error.message, 'error'));
+      return rejectWithValue(error.message);
+    }
   }
 );
 
@@ -195,7 +297,9 @@ export const loadHistory = createAsyncThunk(
     }
 
     try {
-      const { items, total } = await fetchPatientHistory(patientId, {
+      // Reads the visit-history view, so each entry carries the symptoms
+      // recorded at booking next to what was prescribed.
+      const { items, total } = await fetchVisitHistory(patientId, {
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
@@ -440,6 +544,16 @@ const recordsSlice = createSlice({
           total: bucket.total + 1,
           loaded: true,
         };
+
+        // Keep the appointment list's "N past records" badge in step without
+        // another round trip.
+        Object.keys(state.summaryByPhone).forEach((phone) => {
+          state.summaryByPhone[phone] = state.summaryByPhone[phone].map((c) =>
+            c.id === record.patientId
+              ? { ...c, visitCount: c.visitCount + 1, lastVisit: record.issuedAt }
+              : c
+          );
+        });
       })
       .addCase(savePrescription.rejected, (state) => {
         state.saving = false;
@@ -485,6 +599,35 @@ const recordsSlice = createSlice({
 
       .addCase(signThumbnails.fulfilled, (state, action) => {
         state.viewer.urls = { ...state.viewer.urls, ...(action.payload || {}) };
+      })
+
+      /* ---- appointment list integration ---- */
+      .addCase(loadHistorySummary.fulfilled, (state, action) => {
+        state.summaryByPhone = { ...state.summaryByPhone, ...(action.payload || {}) };
+      })
+      .addCase(linkAppointment.fulfilled, (state, action) => {
+        const { appointmentId, patientId, patient } = action.payload;
+        state.patientByAppointment[appointmentId] = patientId;
+        if (patient?.id) state.patientsById[patient.id] = patient;
+
+        // Keep the list badge in step without another round trip.
+        (patient?.phones || []).forEach((ph) => {
+          const existing = state.summaryByPhone[ph.phone] || [];
+          if (!existing.some((c) => c.id === patientId)) {
+            state.summaryByPhone[ph.phone] = [
+              ...existing,
+              {
+                id: patientId,
+                mrn: patient.mrn,
+                fullName: patient.fullName,
+                gender: patient.gender,
+                age: patient.age ?? patient.ageYears,
+                visitCount: 0,
+                lastVisit: null,
+              },
+            ];
+          }
+        });
       });
   },
 });
@@ -513,6 +656,34 @@ export const selectHasMoreHistory = (patientId) => (state) => {
 };
 
 export const PRESCRIPTION_PAGE_SIZE = PAGE_SIZE;
+
+export const selectSummaryByPhone = (state) => state.records.summaryByPhone;
+export const selectPatientByAppointment = (state) => state.records.patientByAppointment;
+
+/**
+ * What the appointment list needs to know about one row.
+ *
+ * `ambiguous` is the case that matters: more than one patient on the number,
+ * so the row must ask rather than assume. `linked` means staff already
+ * confirmed, and the row can go straight to the prescription form.
+ */
+export const selectRowRecord = (appointment) => (state) => {
+  if (!appointment) return { candidates: [], linkedId: '', ambiguous: false, patient: null };
+
+  const phone = appointment.patient?.phone || '';
+  const candidates = state.records.summaryByPhone[phone] || [];
+  const linkedId = appointment.patientId || state.records.patientByAppointment[appointment.id] || '';
+
+  return {
+    candidates,
+    linkedId,
+    ambiguous: !linkedId && candidates.length > 1,
+    patient: linkedId ? state.records.patientsById[linkedId] || null : null,
+    pastVisits: linkedId
+      ? candidates.find((c) => c.id === linkedId)?.visitCount ?? 0
+      : candidates.reduce((max, c) => Math.max(max, c.visitCount), 0),
+  };
+};
 
 /** Rough local-mode footprint, so the demo can warn before quota errors. */
 export const selectLocalRecordBytes = createSelector(

@@ -22,6 +22,8 @@ import MessagePreview from './MessagePreview';
 import WalkInForm from './WalkInForm';
 import { EmptyState } from '../common/Bits';
 import { APPOINTMENT_STATUSES } from '../../config/hospital';
+import AppointmentRecordCell from './AppointmentRecordCell';
+import { loadHistorySummary } from '../../store/recordsSlice';
 import { selectSettings } from '../../store/settingsSlice';
 import { selectUnavailability } from '../../store/unavailabilitySlice';
 import { blockOn, formatRange } from '../../utils/schedule';
@@ -248,6 +250,21 @@ export default function AppointmentTracker() {
   useEffect(() => {
     dispatch(loadNotificationStatuses());
   }, [dispatch]);
+
+  /*
+   * Past-record counts for every phone number in the list, in ONE request.
+   * This is what makes "has this patient been here before?" visible without
+   * leaving the appointment list — asking per row would be twenty round trips
+   * to paint one screen.
+   */
+  const visiblePhones = useMemo(
+    () => [...new Set(appointments.map((a) => a.patient?.phone).filter(Boolean))].sort().join(','),
+    [appointments]
+  );
+
+  useEffect(() => {
+    if (visiblePhones) dispatch(loadHistorySummary(visiblePhones.split(',')));
+  }, [dispatch, visiblePhones]);
 
   const doctorName = (id) => doctors.find((d) => d.id === id)?.name || 'Unassigned';
   const deptName = (id) => departments.find((d) => d.id === id)?.name || '—';
@@ -520,6 +537,10 @@ export default function AppointmentTracker() {
                 )}
 
                 <div className="mt-3 border-t border-slate-100 pt-3">
+                  <AppointmentRecordCell appointment={apt} compact />
+                </div>
+
+                <div className="mt-3 border-t border-slate-100 pt-3">
                   <NotifyCell appointment={apt} onPreview={openPreview} />
                 </div>
 
@@ -548,6 +569,7 @@ export default function AppointmentTracker() {
                     <th scope="col" className="px-4 py-3 font-bold">Slot</th>
                     <th scope="col" className="px-4 py-3 font-bold">Symptoms</th>
                     <th scope="col" className="px-4 py-3 font-bold">Status</th>
+                    <th scope="col" className="px-4 py-3 font-bold">Records</th>
                     <th scope="col" className="px-4 py-3 font-bold">WhatsApp</th>
                     <th scope="col" className="px-4 py-3 text-right font-bold">Actions</th>
                   </tr>
@@ -590,6 +612,7 @@ export default function AppointmentTracker() {
                         {apt.patient.symptoms ? truncate(apt.patient.symptoms, 90) : <span className="text-slate-400">—</span>}
                       </td>
                       <td className="px-4 py-3"><StatusSelect appointment={apt} /></td>
+                      <td className="px-4 py-3"><AppointmentRecordCell appointment={apt} /></td>
                       <td className="px-4 py-3"><NotifyCell appointment={apt} onPreview={openPreview} /></td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end">

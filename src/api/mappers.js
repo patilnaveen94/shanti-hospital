@@ -222,6 +222,8 @@ export function appointmentFromRow(row) {
     date: row.appointment_date,
     slot: toHm(row.slot),
     source: row.source || 'online',
+    // Null until staff confirm identity — never inferred from the phone.
+    patientId: row.patient_id || '',
     patient: {
       name: row.patient_name,
       phone: row.patient_phone,
